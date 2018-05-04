@@ -1,19 +1,44 @@
-extern void scrollup(unsigned int);
-extern void print(char *);
-
-extern char kY;
-extern char kattr;
+#include "types.h"
+#include "screen.h"
+#include "pic.h"
+#include "gdt.h"
+#include "idt.h"
+#include "io.h"
 
 void _start(void)
 {
-        kY = 18;
-        kattr = 0x5E;
-        print("un message\n");
+        fill();
+        printnl("--------------");
+        printnl("- BARK OS v1 -");
+        printnl("--------------");
 
-        kattr = 0x4E;
-        print("un autre message\n");
+        log_info("Loading the IDT");
+        init_idt();
+        log_info("IDT loaded !");
+        
+        log_info("Initializing the PIC");
+        init_pic();
+        log_info("PIC initialized");
+        
+        log_info("Loading the GDT");
+        init_gdt();
+        log_info("GDT loaded !");
+        
 
-        scrollup(40);
+        // Init stack ptr %esp
+        asm("\
+                movw $0x18, %ax     \n \
+                movw %ax, %ss       \n \
+                movl $0x20000, %esp \n \
+        ");
 
-        while (1);
+        // enable the interruptions
+        sti;
+        // jump to main
+        main();
+}
+
+int main() 
+{
+        while(1);
 }

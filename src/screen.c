@@ -1,76 +1,119 @@
-#include "types.h"
+#include "screen.h"
+#include "io.h"
 
-#define RAMSCREEN 0xB8000       /* debut de la memoire video */
-#define SIZESCREEN 0xFA0        /* 4000, nombres d'octets d'une page texte */
-#define SCREENLIM 0xB8FA0
+char _cX = 0;
+char _cY = 0;
 
-char kX = 0;                    /* position courante du curseur a l'ecran */
-char kY = 17;
-char kattr = 0x0E;              /* attributs video des caracteres a afficher */
-
-
-/* 
- * 'scrollup' scrolle l'ecran (la console mappee en ram) vers le haut
- * de n lignes (de 0 a 25).
- */
-void scrollup(unsigned int n)
+char screen_width()
 {
-        unsigned char *video, *tmp;
+        return 80;
+}
+char screen_height()
+{
+        return 25;
+}
 
-        for (video = (unsigned char *) RAMSCREEN;
-             video < (unsigned char *) SCREENLIM; video += 2) {
-                tmp = (unsigned char *) (video + n * 160);
+void fill()
+{
+        unsigned char* video;
+        unsigned char* limit = (unsigned char*) 0xB8FA0;
+        video = (unsigned char*) 0xB8000;
+        while (video < limit) {
+                *video = ' ';
+                video++;
+                *video = 0x1F;
+                video++;
+        }
+}
 
-                if (tmp < (unsigned char *) SCREENLIM) {
-                        *video = *tmp;
-                        *(video + 1) = *(tmp + 1);
+unsigned char* cursor (char x, char y)
+{
+        unsigned char* ptr = (unsigned char*) 0xB8000 + x * 0x02 +  2 * y * screen_width();
+        return ptr;
+}
+
+unsigned char* lim_cursor()
+{
+        return (unsigned char*) SCREENLIMIT;
+}
+
+void set_curr_cursor(char x, char y)
+{
+        _cX = x;
+        _cY = 0;
+}
+
+int is_cursor_oob(unsigned char* cursor)
+{
+        return cursor > lim_cursor();
+}
+
+unsigned char* curr_cursor()
+{
+        return cursor(_cX, _cY);
+}
+
+void nl_cursor()
+{
+        _cY += 1;
+        _cX = 0;
+}
+void next_curr_cursor()
+{       
+        _cX += 1;
+        if (_cX > screen_width()) {
+                _cX = 0;
+                _cY += 1;
+        }
+}
+
+void update_cursor()
+{
+        unsigned char pos = 0xB8000 + _cX  + _cY * screen_width();
+	outb(0x3D4, 0x0F);
+	outb(0x3D5, (unsigned char) (pos & 0xFF));
+	outb(0x3D4, 0x0E);
+	outb(0x3D5, (unsigned char) ((pos >> 8) & 0xFF));
+}
+
+void print(const char* string)
+{
+        unsigned char* video;
+   
+        while( *string != 0 )
+        {
+                video = curr_cursor();
+
+                if (is_cursor_oob(video) == 1) set_curr_cursor(0, 0);
+                
+                if (*string == '\n') {
+                        nl_cursor();
+                } else if (*string == '\t') {
+                        next_curr_cursor();
+                        next_curr_cursor();
+                        next_curr_cursor();
+                        next_curr_cursor();
                 } else {
-                        *video = 0;
-                        *(video + 1) = 0x07;
+                        *video = *string;
+                        video++;
+                        *video = 0x1F;
+                        string++;
+                        video++;
+                        next_curr_cursor();                      
                 }
         }
-
-        kY -= n;
-        if (kY < 0)
-                kY = 0;
+        update_cursor();
 }
 
-void displaychar(uchar c)
+void printnl(const char *string)
 {
-        unsigned char *video;
-        int i;
-
-        if (c == 10) {          /* CR-NL */
-                kX = 0;
-                kY++;
-        } else if (c == 9) {    /* TAB */
-                kX = kX + 8 - (kX % 8);
-        } else if (c == 13) {   /* CR */
-                kX = 0;
-        } else {                /* autres caracteres */
-                video = (unsigned char *) (RAMSCREEN + 2 * kX + 160 * kY);
-                *video = c;
-                *(video + 1) = kattr;
-
-                kX++;
-                if (kX > 79) {
-                        kX = 0;
-                        kY++;
-                }
-        }
-
-        if (kY > 24)
-                scrollup(kY - 24);
+        print(string);
+        nl_cursor();
+        update_cursor();
 }
 
-/*
- * 'print' affiche a l'ecran, a la position courante du curseur, une chaine
- * de caracteres terminee par \0.
- */
-void print(char *string)
+void log_info(const char *string) 
 {
-        while (*string != 0) {  /* tant que le caractere est different de 0x0 */
-                displaychar(*string);
-                string++;
-        }
+        print("[INFO] ");
+        printnl(string);
 }
