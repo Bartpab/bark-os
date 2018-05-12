@@ -15,3 +15,4 @@
 	asm volatile ("inb %%dx, %%al" : "=a" (_v) : "d" (port)); \
         _v;     \
 })
+

@@ -4,9 +4,14 @@
 #include "gdt.h"
 #include "idt.h"
 #include "io.h"
+#include "kbd.h"
 
 void _start(void)
 {
+
+        // Init event handlers
+        init_kbd();
+        // Init the rests
         fill();
         printnl("--------------");
         printnl("- BARK OS v1 -");
@@ -38,7 +43,20 @@ void _start(void)
         main();
 }
 
+void on_key_event(const struct kbd_event event) 
+{
+        if(event.pressed == 0x01) {
+                printc(ktc(event.key));
+        }
+}
+
 int main() 
 {
+        int error = sub_kbd_event(on_key_event);
+        
+        if (error == 0x01) {
+                print("Cannot sub to keyboard events!");
+        }
+        
         while(1);
 }

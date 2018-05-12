@@ -18,6 +18,7 @@ void set_curr_cursor(char x, char y);
 unsigned char* curr_cursor();
 void nl_cursor();
 void next_curr_cursor();
+void printc(char c);
 void print(const char* string);
 void printnl(const char* string);
 

@@ -71,38 +71,41 @@ void update_cursor()
 {
         unsigned char pos = 0xB8000 + _cX  + _cY * screen_width();
 	outb(0x3D4, 0x0F);
-	outb(0x3D5, (unsigned char) (pos & 0xFF));
+	outb(0x3D5, (pos & 0xFF));
 	outb(0x3D4, 0x0E);
-	outb(0x3D5, (unsigned char) ((pos >> 8) & 0xFF));
+	outb(0x3D5, ((pos >> 8) & 0xFF));
 }
 
-void print(const char* string)
+void printc(char c)
 {
         unsigned char* video;
-   
+        video = curr_cursor();
+
+        if (is_cursor_oob(video) == 1) set_curr_cursor(0, 0);
+        
+        if (c == '\n') {
+                nl_cursor();
+        } else if (c == '\t') {
+                next_curr_cursor();
+                next_curr_cursor();
+                next_curr_cursor();
+                next_curr_cursor();
+        } else {
+                *video = c;
+                video++;
+                *video = 0x1F;
+                video++;
+                next_curr_cursor();                      
+        }    
+        update_cursor();    
+}
+void print(const char* string)
+{
         while( *string != 0 )
         {
-                video = curr_cursor();
-
-                if (is_cursor_oob(video) == 1) set_curr_cursor(0, 0);
-                
-                if (*string == '\n') {
-                        nl_cursor();
-                } else if (*string == '\t') {
-                        next_curr_cursor();
-                        next_curr_cursor();
-                        next_curr_cursor();
-                        next_curr_cursor();
-                } else {
-                        *video = *string;
-                        video++;
-                        *video = 0x1F;
-                        string++;
-                        video++;
-                        next_curr_cursor();                      
-                }
+                printc(*string);
+                string++;
         }
-        update_cursor();
 }
 
 void printnl(const char *string)
